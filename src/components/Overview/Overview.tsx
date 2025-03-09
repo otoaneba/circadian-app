@@ -508,7 +508,8 @@ const Overview: React.FC = () => {
                 value: "Current T-min",
                 position: "insideTopRight",
                 fill: "#E53E3E",
-                fontSize: 12
+                fontSize: 12,
+                opacity: highlightedCurve === 'current' ? 1 : 0.3
               }}
             />
 
