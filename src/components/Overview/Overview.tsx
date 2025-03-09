@@ -32,13 +32,17 @@ const Overview: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(getCurrentTimeDecimal());
 
   useEffect(() => {
+    // Update immediately on mount
+    setCurrentTime(getCurrentTimeDecimal());
+
     const timer = setInterval(() => {
       const newTime = getCurrentTimeDecimal();
       setCurrentTime(newTime);
+      console.log("Current time updated:", newTime); // Debug log
     }, 15000); // Update every 15 seconds
 
     return () => clearInterval(timer);
-  }, [getCurrentTimeDecimal]);
+  }, [getCurrentTimeDecimal]); // Add getCurrentTimeDecimal to dependencies
 
   // Force re-render when currentTime changes
   useEffect(() => {
@@ -381,6 +385,10 @@ const Overview: React.FC = () => {
     const currentTMinTime = currentWakeHours - 2;
     const targetTMinTime = targetWakeHours - 2;
 
+    // Calculate current temperature using the same phase formula as generateTemperatureData
+    const phase = (currentTime - currentTMinTime - 6) * (Math.PI / 12);
+    const currentTemp = 98 + Math.sin(phase) * 2;
+
     return (
       <div className="temperature-chart">
         <h3>Combined Temperature Rhythms</h3>
@@ -426,71 +434,7 @@ const Overview: React.FC = () => {
             
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
             
-            {/* Current rhythm zones */}
-            <ReferenceArea
-              x1={currentTMinTime - 4}
-              x2={currentTMinTime + 4}
-              y1={96}
-              y2={100}
-              fill="url(#lightSensitiveCurrent)"
-              fillOpacity={highlightedCurve === 'current' ? 1 : 0}
-              label={{ 
-                value: "Light Sensitive Zone", 
-                position: "insideBottom",
-                fill: "#E53E3E",
-                fontSize: 12,
-                opacity: highlightedCurve === 'current' ? 1 : 0
-              }}
-            />
-            <ReferenceArea
-              x1={currentTMinTime + 6}
-              x2={currentTMinTime + 10}
-              y1={96}
-              y2={100}
-              fill="url(#deadZoneCurrent)"
-              fillOpacity={highlightedCurve === 'current' ? 1 : 0}
-              label={{ 
-                value: "Dead Zone", 
-                position: "insideBottom",
-                fill: "#4A5568",
-                fontSize: 12,
-                opacity: highlightedCurve === 'current' ? 1 : 0
-              }}
-            />
-
-            {/* Target rhythm zones */}
-            <ReferenceArea
-              x1={targetTMinTime - 4}
-              x2={targetTMinTime + 4}
-              y1={96}
-              y2={100}
-              fill="url(#lightSensitiveTarget)"
-              fillOpacity={highlightedCurve === 'target' ? 1 : 0}
-              label={{ 
-                value: "Light Sensitive Zone", 
-                position: "insideBottom",
-                fill: "#38A169",
-                fontSize: 12,
-                opacity: highlightedCurve === 'target' ? 1 : 0
-              }}
-            />
-            <ReferenceArea
-              x1={targetTMinTime + 6}
-              x2={targetTMinTime + 10}
-              y1={96}
-              y2={100}
-              fill="url(#deadZoneTarget)"
-              fillOpacity={highlightedCurve === 'target' ? 1 : 0}
-              label={{ 
-                value: "Dead Zone", 
-                position: "insideBottom",
-                fill: "#4A5568",
-                fontSize: 12,
-                opacity: highlightedCurve === 'target' ? 1 : 0
-              }}
-            />
-
-            {/* Existing lines and other elements */}
+            {/* Current rhythm curve */}
             <Line
               type="monotone"
               dataKey="currentTemp"
@@ -513,6 +457,7 @@ const Overview: React.FC = () => {
               }}
             />
 
+            {/* Target rhythm curve */}
             <Line
               type="monotone"
               dataKey="targetTemp"
@@ -532,6 +477,24 @@ const Overview: React.FC = () => {
                 fill: "#38A169",
                 fontSize: 12,
                 opacity: highlightedCurve === 'target' ? 1 : 0.3
+              }}
+            />
+
+            {/* Current time marker */}
+            <ReferenceDot
+              x={currentTime}
+              y={currentTemp}
+              r={6}
+              fill="#38B2AC"
+              stroke="#fff"
+              strokeWidth={2}
+              className="current-time-dot"
+              label={{
+                value: "Current Time",
+                position: "top",
+                offset: 15,
+                fill: "#38B2AC",
+                fontSize: 12
               }}
             />
 
