@@ -529,7 +529,8 @@ const Overview: React.FC = () => {
                 value: "Target T-min",
                 position: "insideTopRight",
                 fill: "#38A169",
-                fontSize: 12
+                fontSize: 12,
+                opacity: highlightedCurve === 'target' ? 1 : 0.3
               }}
             />
 
