@@ -176,13 +176,13 @@
 .temperature-chart {
   background: white;
   border-radius: 1.25rem;
-  padding: 2rem;
+  padding: 1rem;
   margin-bottom: 2rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .temperature-chart h3 {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   color: #2d3748;
 }
 
@@ -255,4 +255,42 @@
 
 .toggle-button.active:hover {
   background: #2c5282;
+}
+
+.custom-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: center;
+  padding: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: opacity 0.2s;
+}
+
+.legend-icon {
+  width: 20px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.legend-icon.line,
+.legend-icon.dotted {
+  height: 0;
+  margin-top: 6px;
+}
+
+.legend-icon.dotted {
+  border-style: dashed;
+  border-width: 2px 0 0 0;
+}
+
+.legend-label {
+  font-size: 12px;
+  color: #4a5568;
 } 

@@ -56,6 +56,8 @@ const Logging: React.FC = () => {
   const [mealTimeCurrent, setMealTimeCurrent] = useState<string>("12:00");
   const [wakeLocal, setWakeLocal] = useState<string>("06:00");
   const [bedtimeLocal, setBedtimeLocal] = useState<string>("22:00");
+  const [lightAvoidanceStart, setLightAvoidanceStart] = useState<string>("20:00");
+  const [lightAvoidanceEnd, setLightAvoidanceEnd] = useState<string>("08:00");
   const [timeShift, setTimeShift] = useState<number>(6);
   const [daysAvailable, setDaysAvailable] = useState<number>(3);
   const [schedule, setScheduleState] = useState<Schedule | null>(null);
@@ -488,19 +490,6 @@ const Logging: React.FC = () => {
            </section>
         )}
 
-        <aside className="sidebar">
-           <h2>💡 Helpful Tips</h2>
-        </aside>
-
-        <section className="resources-section">
-           <h2>📖 Resources</h2>
-           <p>
-              For more information on circadian rhythms and jet lag management, explore this detailed guide:{" "}
-              <a href="https://ai.hubermanlab.com/s/xM6A8jwu" target="_blank" rel="noopener noreferrer">
-                 Huberman Lab Jet Lag Protocol
-              </a>
-           </p>
-        </section>
      </div>
   );
 };

@@ -35,7 +35,7 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     <ScheduleContext.Provider value={{ 
       schedule, 
       setSchedule, 
-      baseSchedule, 
+      baseSchedule,
       setBaseSchedule 
     }}>
       {children}
