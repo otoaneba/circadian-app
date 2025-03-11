@@ -49,6 +49,43 @@ const Overview: React.FC = () => {
     // This effect will run whenever currentTime changes
   }, [currentTime]);
 
+  const getCurrentTMinTime = useCallback(() => {
+    if (!baseSchedule?.wakeTime) return null;
+    const currentWakeTime = baseSchedule.wakeTime;
+    const [wakeHours, wakeMinutes] = baseSchedule.wakeTime.split(':').map(Number);
+    const wakeTimeDecimal = wakeHours + wakeMinutes / 60;
+    return wakeTimeDecimal - 2; // T-min is 2 hours before wake time
+  }, [baseSchedule?.wakeTime]);
+
+  const [currentTMinTime] = useState(getCurrentTMinTime());
+  
+  const getTargetTMinTime = useCallback(() => {
+    if (!schedule?.['Day 1']?.[0]) return null;
+    const [hours, minutes] = schedule['Day 1'][0].split(':').map(Number);
+    const targetWakeTime = hours + minutes / 60;
+    // Round to nearest quarter hour, just like getCurrentTMinTime
+    const targetTMin = roundToNearestQuarter(targetWakeTime - 2); // T-min is 2 hours before wake time
+    return targetTMin;
+  }, [schedule]);
+
+  // Add state for target T-min time
+  const [targetTMinTime, setTargetTMinTime] = useState<number | null>(getTargetTMinTime());
+
+  // Update target T-min time when schedule changes
+  useEffect(() => {
+    setTargetTMinTime(getTargetTMinTime());
+  }, [getTargetTMinTime]);
+
+  const getBedtimeHours = useCallback(() => {
+  // Calculate light avoidance zone (6 to 4 hours before bedtime)
+  if (!baseSchedule?.bedTime) return null;
+  const [hours, minutes] = baseSchedule.bedTime.split(':').map(Number);
+  const bedtimeHours = hours + minutes / 60;    
+  return bedtimeHours;
+  }, [baseSchedule?.bedTime]);
+
+  const [bedTimeHours] = useState(getBedtimeHours());
+
   const getHeaderLogo = () => {
     switch (location.pathname) {
       case '/logging':
@@ -99,9 +136,56 @@ const Overview: React.FC = () => {
   // Add this state for the toggle
   const [highlightedCurve, setHighlightedCurve] = useState<'current' | 'target'>('current');
 
+  // Add this helper function at component level (outside renderCombinedChart)
+  const getLightExposureTimes = (daySchedule: string[] = [], activities: string[] = []) => {
+    const times: { start: number; end: number; }[] = [];
+    
+    activities.forEach((activity, index) => {
+      if (activity.toLowerCase().includes('light exposure start')) {
+        const [startHour] = daySchedule[index].split(':').map(Number);
+        const [endHour] = daySchedule[index + 1].split(':').map(Number);
+        times.push({ start: startHour, end: endHour });
+      }
+    });
+    
+    return times;
+  };
+
+  // Add this state at component level
+  const [currentLightExposures, setCurrentLightExposures] = useState<Array<{start: number; end: number;}>>([]);
+
+  // Add this useEffect to update light exposures when schedule changes
+  useEffect(() => {
+    if (schedule) {
+      const exposures = getLightExposureTimes(schedule['Day 1'], schedule.Activity);
+      setCurrentLightExposures(exposures);
+    }
+  }, [schedule]);
+
+  // Add these state declarations near the top of the component with other useState calls
+  const [currentWakeHours, setCurrentWakeHours] = useState<number | null>(null);
+  // const [targetTMinTime, setTargetTMinTime] = useState<number | null>(null);
+  console.log("targetTMinTime", targetTMinTime);
+  const [targetWakeHours, setTargetWakeHours] = useState<number | null>(null);
+
+  // Add this useEffect to update the times when schedule or baseSchedule changes
+  useEffect(() => {
+    if (baseSchedule?.wakeTime && schedule) {
+      // Calculate current wake hours
+      const [hours, minutes] = baseSchedule.wakeTime.split(':').map(Number);
+      setCurrentWakeHours(hours + minutes / 60);
+
+      // Calculate target times
+      const [targetHours, targetMinutes] = schedule['Day 1'][0].split(':').map(Number);
+      const targetWakeTime = targetHours + targetMinutes / 60;
+      setTargetWakeHours(targetWakeTime);
+      // setTargetTMinTime(targetWakeTime - 2); // T-min is 2 hours before wake time
+    }
+  }, [baseSchedule?.wakeTime, schedule]);
+
   // Add this function to render the combined chart
   const renderCombinedChart = () => {
-    if (!schedule || !baseSchedule) return null;
+    if (!schedule || !baseSchedule || !currentWakeHours || !targetWakeHours || !currentTMinTime || !targetTMinTime) return null;
 
     // Generate data for both curves
     const currentWakeTime = baseSchedule.wakeTime;
@@ -119,34 +203,20 @@ const Overview: React.FC = () => {
     }));
 
     // Calculate T-min times for both curves
-    const [currentWakeHours] = currentWakeTime.split(':').map(Number);
-    const [targetWakeHours] = targetWakeTime.split(':').map(Number);
-    const currentTMinTime = currentWakeHours - 2;
-    const targetTMinTime = targetWakeHours - 2;
+    // const [currentWakeHours] = currentWakeTime.split(':').map(Number);
+    // const [targetWakeHours] = targetWakeTime.split(':').map(Number);
+    // const currentTMinTime = currentWakeHours - 2;
+    // const targetTMinTime = targetWakeHours - 2;
 
     // Calculate current temperature using the same phase formula as generateTemperatureData
     const phase = (currentTime - currentTMinTime - 6) * (Math.PI / 12);
     const currentTemp = 98 + Math.sin(phase) * 2;
 
-    // Get light exposure times from schedule
-    const getLightExposureTimes = (daySchedule: string[], activities: string[]) => {
-      const times: { start: number; end: number; }[] = [];
-      
-      activities.forEach((activity, index) => {
-        if (activity.toLowerCase().includes('light exposure start')) {
-          const [startHour] = daySchedule[index].split(':').map(Number);
-          const [endHour] = daySchedule[index + 1].split(':').map(Number);
-          times.push({ start: startHour, end: endHour });
-        }
-      });
-      
-      return times;
-    };
-
     // Get current and target light exposure times
     const currentLightExposures = getLightExposureTimes(schedule['Day 1'], schedule.Activity);
     const targetLightExposures = getLightExposureTimes(schedule['Day 1'], schedule.Activity);
     console.log("currentLightExposures", currentLightExposures);
+    console.log("currentTMinTime", currentTMinTime);
 
     const legendPayload = [
       {
@@ -235,27 +305,31 @@ const Overview: React.FC = () => {
           </button>
         </div>
        
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={combinedData} margin={{ top: 20, right: 30, left: 25, bottom: 20 }}>
-            
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+        <ResponsiveContainer width="100%" height={800}>
+          <LineChart 
+            data={combinedData} 
+            layout="vertical"
+            margin={{ top: 20, right: 30, left: 60, bottom: 20 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
             
             {/* Current rhythm zones */}
             <ReferenceArea
               name="Light Sensitive Zone"
-              x1={currentTMinTime - 4}
-              x2={currentTMinTime + 4}
-              y1={96}
-              y2={100}
+              y1={currentTMinTime - 4}
+              y2={currentTMinTime + 4}
+              x1={96}
+              x2={100}
               fill="rgba(230, 57, 70, 1)"
               fillOpacity={highlightedCurve === 'current' ? 0.6 : 0}
             />
+
             <ReferenceArea
               name="Dead Zone"
-              x1={currentTMinTime + 6}
-              x2={currentTMinTime + 10}
-              y1={96}
-              y2={100}
+              y1={currentTMinTime + 6}
+              y2={currentTMinTime + 10}
+              x1={96}
+              x2={100}
               fill="rgba(113,128,150, 0.2)"
               fillOpacity={highlightedCurve === 'current' ? 0.6 : 0}
             />
@@ -263,173 +337,123 @@ const Overview: React.FC = () => {
             {/* Light avoidance zone */}
             <ReferenceArea
               name="Light Avoidance Zone"
-              x1={lightAvoidanceStartTime}
-              x2={lightAvoidanceEndTime}
-              y1={96}
-              y2={100}
-              fill="rgba(0, 53, 84, 1)"
+              y1={lightAvoidanceStartTime}
+              y2={lightAvoidanceEndTime}
+              x1={96}
+              x2={100}
+              fill="rgba(81, 87, 253, 0.41)"
               fillOpacity={highlightedCurve === 'current' ? 0.6 : 0}
+            />
+
+            {/* Current light exposure zone */}
+            <ReferenceArea
+              name="Light Exposure Zone"
+              y1={currentLightExposures[0]?.start}
+              y2={currentLightExposures[0]?.end < currentLightExposures[0]?.start ? 24 : currentLightExposures[0]?.end}
+              x1={96}
+              x2={100}
+              fill="rgba(252, 191, 73, 1)"
+              fillOpacity={highlightedCurve === 'current' ? 0.9 : 0}
+              stroke="#4299e1"
+              strokeOpacity={highlightedCurve === 'current' ? 0.2 : 0}
             />
 
             {/* Target rhythm zones */}
             <ReferenceArea
               name="Light Sensitive Zone"
-              x1={targetTMinTime - 4 < 0 ? 0 : targetTMinTime - 4}
-              x2={targetTMinTime + 4 > 24 ? 24 : targetTMinTime + 4}
-              y1={96}
-              y2={100}
-              fill="rgba(255,107,107, 0.2)"
+              y1={targetTMinTime - 4 < 0 ? 0 : targetTMinTime - 4}
+              y2={targetTMinTime + 4 > 24 ? 24 : targetTMinTime + 4}
+              x1={96}
+              x2={100}
+              fill="rgba(230, 57, 70, 1)"
               fillOpacity={highlightedCurve === 'target' ? 0.6 : 0}
             />
+
             <ReferenceArea
               name="Dead Zone"
-              x1={targetTMinTime + 6}
-              x2={targetTMinTime + 10}
-              y1={96}
-              y2={100}
+              y1={targetTMinTime + 6}
+              y2={targetTMinTime + 10}
+              x1={96}
+              x2={100}
               fill="rgba(113,128,150, 0.2)"
               fillOpacity={highlightedCurve === 'target' ? 0.6 : 0}
             />
 
-            {/* Light exposure zones */}
-              <ReferenceArea
-                x1={currentLightExposures[0].start}
-                x2={currentLightExposures[0].end < currentLightExposures[0].start ? 24 : currentLightExposures[0].end}
-                y1={96}
-                y2={100}
-                label={{
-                  value: "Light Exposure",
-                  position: "center",
-                  fill: "#4299e1",
-                  fontSize: 10,
-                  opacity: highlightedCurve === 'current' ? 1 : 0
-                }}
-                fill="rgba(252, 191, 73, 1)"
-                fillOpacity={highlightedCurve === 'current' ? 0.9 : 0}
-                stroke="#4299e1"
-                strokeOpacity={highlightedCurve === 'current' ? 0.2 : 0}
-              />
-           
+            <ReferenceArea
+              name="Light Avoidance Zone"
+              y1={lightAvoidanceStartTime}
+              y2={lightAvoidanceEndTime}
+              x1={96}
+              x2={100}
+              fill="rgba(81, 87, 253, 0.41)"
+              fillOpacity={highlightedCurve === 'target' ? 0.6 : 0}
+            />
 
-            {/* {targetLightExposures.map((exposure, index) => (
-              <ReferenceArea
-                key={`target-light-${index}`}
-                x1={exposure.start}
-                x2={exposure.end}
-                y1={96}
-                y2={100}
-                fill="#f0fff4"
-                fillOpacity={highlightedCurve === 'target' ? 0.3 : 0}
-                stroke="#38A169"
-                strokeOpacity={highlightedCurve === 'target' ? 0.2 : 0}
-              />
-            ))} */}
+            {/* Target light exposure zone */}
+            <ReferenceArea
+              name="Target Light Exposure Zone"
+              y1={targetLightExposures[0]?.start}
+              y2={targetLightExposures[0]?.end < targetLightExposures[0]?.start ? 24 : targetLightExposures[0]?.end}
+              x1={96}
+              x2={100}
+              fill="rgba(252, 191, 73, 1)"
+              fillOpacity={highlightedCurve === 'target' ? 0.9 : 0}
+              stroke="#4299e1"
+              strokeOpacity={highlightedCurve === 'target' ? 0.2 : 0}
+            />
 
-            {/* Current rhythm curve */}
-            {/* <Line
-              type="monotone"
-              dataKey="currentTemp"
-              stroke="#2b6cb0"
-              strokeWidth={highlightedCurve === 'current' ? 1 : 0.5}
-              dot={false}
-              opacity={highlightedCurve === 'current' ? 1 : 0.3}
-            /> */}
-            {/* Current T-min line */}
-            {/* <ReferenceLine
-              x={currentTMinTime}
-              stroke="#E53E3E"
-              opacity={highlightedCurve === 'current' ? 1 : 0.05}
-              strokeWidth={highlightedCurve === 'current' ? 1 : 0.05}
-              style={{ strokeWidth: highlightedCurve === 'current' ? '2px' : '1px' }}
-            /> */}
-            {/* Current wake time line */}
+            {/* Target wake time line */}
             <ReferenceLine
-              x={currentWakeHours}
+              y={targetTMinTime + 2}
+              stroke="#2b6cb0"
+              strokeWidth={highlightedCurve === 'target' ? 2 : 1}
+              strokeDasharray="5 5"
+              opacity={highlightedCurve === 'target' ? 1 : 0.05}
+              label={{ 
+                value: "☀️ Target Wake",
+                position: "right",
+                fill: "#38A169",
+                fontSize: 12,
+                opacity: highlightedCurve === 'target' ? 1 : 0.05
+              }}
+            />
+
+            <ReferenceLine
+              y={currentWakeHours}
               stroke="#2b6cb0"              
               strokeDasharray="3 3"
               opacity={highlightedCurve === 'current' ? 1 : 0.05}
               label={{ 
                 value: "☀️ Current Wake",
-                position: "top",
+                position: "right",
                 fill: "#2b6cb0",
                 fontSize: 12,
                 opacity: highlightedCurve === 'current' ? 1 : 0.05
               }}
             />
 
-
-
-            {/* Target rhythm curve */}
-            <Line
-              type="monotone"
-              dataKey="targetTemp"
-              stroke="#38A169"
-              strokeWidth={highlightedCurve === 'target' ? 1 : 0.5}
-              dot={false}
-              opacity={highlightedCurve === 'target' ? 1 : 0.2}
-            />
-            {/* Target T-min line */}
-            <ReferenceLine
-              x={targetTMinTime}
-              stroke="red"
-              opacity={highlightedCurve === 'target' ? 1 : 0.01}
-              label={{ 
-                value: "Target T-min",
-                position: "top",
-                fill: "#38A169",
-                fontSize: 12,
-                opacity: highlightedCurve === 'target' ? 1 : 0.05
-              }}
-            />
-
-            {/* Target wake time line */}
-            <ReferenceLine
-              x={targetWakeHours}
-              stroke="orange"
-              strokeWidth={highlightedCurve === 'target' ? 2 : 1}
-              strokeDasharray="5 5"
-              opacity={highlightedCurve === 'target' ? 1 : 0.05}
-              label={{ 
-                value: "Target Wake",
-                position: "top",
-                fill: "#38A169",
-                fontSize: 12,
-                opacity: highlightedCurve === 'target' ? 1 : 0.05
-              }}
-            />
-
-            {/* Current time marker */}
             <ReferenceDot
-              x={currentTime}
-              y={currentTemp}
+              y={currentTime}
+              x={currentTemp}
               r={6}
               fill="#38B2AC"
               stroke="#fff"
               strokeWidth={2}
               className="current-time-dot"
-              label={{
-                value: "Current Time",
-                position: "top",
-                offset: 15,
-                fill: "#38B2AC",
-                fontSize: 12
-              }}
             />
 
-            <XAxis
+            <YAxis
               dataKey="time"
-              tickFormatter={(value) => `${Math.floor(value).toString().padStart(2, '0')}:00`}
+              type="number"
               domain={[0, 24]}
-              ticks={Array.from({ length: 13 }, (_, i) => i * 2)}
+              tickFormatter={(value) => `${Math.floor(value).toString().padStart(2, '0')}:00`}
+              ticks={Array.from({ length: 25 }, (_, i) => i)}
               interval={0}
             />
-            <YAxis
+            <XAxis
+              type="number"
               domain={[96, 100]}
-              tickFormatter={(value) => {
-                return ((value == 96.0 || value == 100.0) ? `` : '')
-              }}
               hide={true}
-              tick={false}
             />
             <Tooltip
               formatter={(value: number) => [`${value.toFixed(2)}°F`, 'Temperature']}
@@ -485,6 +509,20 @@ const Overview: React.FC = () => {
         <Routes>
           <Route path="/" element={
             <div className="overview-container">
+              <section className="resources-section">
+                <h2>Status</h2>
+                <p>
+                  {currentTMinTime && (
+                    (currentTMinTime - 4) <= currentTime && currentTime <= currentTMinTime + 4 ? "Currently in light sensitive zone" : 
+                    bedTimeHours && bedTimeHours - 6 <= currentTime && currentTime <= bedTimeHours - 4 ? "Currently in light avoidance zone" : 
+                    currentTMinTime && currentTMinTime + 6 <= currentTime && currentTime <= currentTMinTime + 10 ? "Currently in dead zone" : 
+                    currentLightExposures.length > 0 && 
+                    currentLightExposures[0].start <= currentTime && 
+                    currentTime <= currentLightExposures[0].end ? "Currently in light exposure zone" :
+                    "No special zone active"
+                  )}
+                </p>
+              </section>
               <div className="temperature-charts">
                 {renderCombinedChart()}
                 <aside className="sidebar">
@@ -493,10 +531,10 @@ const Overview: React.FC = () => {
                 <section className="resources-section">
                   <h2>📖 Resources</h2>
                   <p>
-                      For more information on circadian rhythms and jet lag management, explore this detailed guide:{" "}
-                      <a href="https://ai.hubermanlab.com/s/xM6A8jwu" target="_blank" rel="noopener noreferrer">
-                        Huberman Lab Jet Lag Protocol
-                      </a>
+                    For more information on circadian rhythms and jet lag management, explore this detailed guide:{" "}
+                    <a href="https://ai.hubermanlab.com/s/xM6A8jwu" target="_blank" rel="noopener noreferrer">
+                      Huberman Lab Jet Lag Protocol
+                    </a>
                   </p>
                 </section>
               </div>

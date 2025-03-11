@@ -171,14 +171,12 @@
 .temperature-chart {
   flex: 1;
   min-height: 0;  /* Allows chart to shrink properly */
-}
-
-.temperature-chart {
   background: white;
   border-radius: 1.25rem;
   padding: 1rem;
   margin-bottom: 2rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  height: 800px; /* Match the ResponsiveContainer height */
 }
 
 .temperature-chart h3 {
@@ -186,22 +184,19 @@
   color: #2d3748;
 }
 
-/* Update the reference area styles */
+/* Update the reference area styles for vertical layout */
 .recharts-reference-area-rect {
   opacity: 1;
 }
 
-.recharts-reference-area-label {
-  font-size: 12px;
-}
-
-/* Style the reference line */
 .recharts-reference-line line {
   stroke-width: 2;
 }
 
-.recharts-reference-line-label {
+/* Adjust Y-axis labels */
+.recharts-yaxis .recharts-text {
   font-size: 12px;
+  fill: #718096;
 }
 
 @keyframes pulse {
