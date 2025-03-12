@@ -171,12 +171,14 @@
 .temperature-chart {
   flex: 1;
   min-height: 0;  /* Allows chart to shrink properly */
+}
+
+.temperature-chart {
   background: white;
   border-radius: 1.25rem;
   padding: 1rem;
   margin-bottom: 2rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  height: 800px; /* Match the ResponsiveContainer height */
 }
 
 .temperature-chart h3 {
@@ -184,19 +186,22 @@
   color: #2d3748;
 }
 
-/* Update the reference area styles for vertical layout */
+/* Update the reference area styles */
 .recharts-reference-area-rect {
   opacity: 1;
 }
 
+.recharts-reference-area-label {
+  font-size: 12px;
+}
+
+/* Style the reference line */
 .recharts-reference-line line {
   stroke-width: 2;
 }
 
-/* Adjust Y-axis labels */
-.recharts-yaxis .recharts-text {
+.recharts-reference-line-label {
   font-size: 12px;
-  fill: #718096;
 }
 
 @keyframes pulse {
@@ -289,3 +294,174 @@
   font-size: 12px;
   color: #4a5568;
 } 
+
+
+.weekly-calendar {
+  margin-top: 2rem;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  overflow: hidden;
+  scrollbar-gutter: stable;
+}
+
+.calendar-header {
+  display: grid;
+  grid-template-columns: 60px repeat(auto-fit, minmax(0, 1fr));
+  border-bottom: 1px solid #e2e8f0;
+  text-align: center;
+  padding-right: 16px;
+}
+
+.day-header {
+  padding: 1rem;
+  font-weight: 600;
+  color: #2d3748;
+  border-left: 1px solid #e2e8f0;
+}
+
+.day-header:first-child {
+  visibility: hidden;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: 60px repeat(auto-fit, minmax(0, 1fr));
+  height: 1440px;
+  overflow-y: auto;
+  position: relative;
+  border-top: 1px solid #edf2f7;
+}
+
+.time-slot {
+  height: 60px;
+  padding: 0.5rem;
+  font-size: 0.75rem;
+  color: #4a5568;
+  border-bottom: 1px solid #edf2f7;
+  display: flex;
+  align-items: center;
+  background: #f7fafc;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.calendar-cell {
+  height: 60px;
+  border-bottom: 1px solid #edf2f7;
+  border-left: 1px solid #edf2f7;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  box-sizing: border-box;
+}
+
+.time-column {
+  border-right: 1px solid #edf2f7;
+  background: #f7fafc;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+
+.calendar-day-column {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.zone-label {
+  font-size: 11px;
+  color: #4a5568;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.calendar-cell:hover .zone-label {
+  opacity: 1;
+}
+
+.light-sensitive-zone {
+  background-color: rgba(230, 57, 70, 0.1);
+}
+
+.dead-zone {
+  background-color: rgba(113,128,150, 0.1);
+}
+
+.light-exposure-zone {
+  background-color: rgba(252, 191, 73, 0.3);
+}
+
+.light-avoidance-zone {
+  background-color: rgba(81, 87, 253, 0.2);
+}
+
+/* Add pattern or stripes for overlapping zones */
+.calendar-cell.light-sensitive-zone.light-exposure-zone {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(230, 57, 70, 0.1),
+    rgba(230, 57, 70, 0.1) 10px,
+    rgba(252, 191, 73, 0.3) 10px,
+    rgba(252, 191, 73, 0.3) 20px
+  );
+}
+
+.calendar-cell.light-avoidance-zone.light-sensitive-zone {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(230, 57, 70, 0.1),
+    rgba(230, 57, 70, 0.1) 10px,
+    rgba(81, 87, 253, 0.2) 10px,
+    rgba(81, 87, 253, 0.2) 20px
+  );
+}
+
+/* Optional: Style the scrollbar for better appearance */
+.calendar-grid::-webkit-scrollbar {
+  width: 16px;
+}
+
+.calendar-grid::-webkit-scrollbar-track {
+  background: #f7fafc;
+}
+
+.calendar-grid::-webkit-scrollbar-thumb {
+  background-color: #cbd5e0;
+  border-radius: 8px;
+  border: 4px solid #f7fafc;
+}
+
+.current-time-indicator {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: #E53E3E;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.current-time-indicator::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: #E53E3E;
+}
+
+.time-label {
+  position: absolute;
+  left: 10px;
+  background-color: #E53E3E;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  transform: translateY(-50%);
+  white-space: nowrap;
+}
