@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { convertToFHIR } from '../../utils/fhirConverter';
 import './Logging.css';
 import { DateTime } from 'luxon';
 import { useSchedule } from '../../context/ScheduleContext';
@@ -69,6 +70,16 @@ const Logging: React.FC = () => {
   const [showCurrentSuggestions, setShowCurrentSuggestions] = useState(false);
   const [showDestinationSuggestions, setShowDestinationSuggestions] = useState(false);
  
+  useEffect(() => {
+   const savedData = localStorage.getItem('circadianSchedule');
+   if (savedData) {
+     const { schedule, baseSchedule } = JSON.parse(savedData);
+     setScheduleState(schedule);
+     setBaseSchedule(baseSchedule);
+     setSchedule(schedule);
+   }
+ }, []);
+
   // Then update the useEffect for timezone calculations
   useEffect(() => {
     if (currentLocationInput && destinationLocationInput) {
@@ -202,7 +213,67 @@ const Logging: React.FC = () => {
     });
 
     setSchedule(newSchedule);
+
+    const storageData = {
+      schedule: newSchedule,
+      baseSchedule: {
+        wakeTime: wakeCurrent,
+        bedTime: bedtimeCurrent,
+        mealTime: mealTimeCurrent,
+      },
+      timestamp: new Date().toISOString()
+    };
+    localStorage.setItem('circadianSchedule', JSON.stringify(storageData));
+
+    const fhirData = convertToFHIR(newSchedule, {
+      wakeTime: wakeCurrent,
+      bedTime: bedtimeCurrent,
+      mealTime: mealTimeCurrent,
+    });
+
+    try {
+      const blob = new Blob([JSON.stringify(fhirData, null, 2)], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `circadian-schedule-${new Date().toISOString()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error saving FHIR JSON:', error);
+    }
+
   };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+   const file = event.target.files?.[0];
+   if (file) {
+     try {
+       const text = await file.text();
+       const fhirData = JSON.parse(text);
+       
+       // Extract schedule data from FHIR format
+       const schedule = fhirData.schedule.reduce((acc: any, item: any) => {
+         if (!acc[item.day]) {
+           acc[item.day] = [];
+         }
+         acc[item.day].push(item.time);
+         return acc;
+       }, { Activity: Array.from(new Set(fhirData.schedule.map((item: any) => item.activity))) });
+
+       setScheduleState(schedule);
+       setSchedule(schedule);
+       localStorage.setItem('circadianSchedule', JSON.stringify({
+         schedule,
+         timestamp: new Date().toISOString()
+       }));
+     } catch (error) {
+       console.error('Error loading schedule:', error);
+     }
+   }
+ };
 
   const tMin = (): string => {
     const [hours, minutes] = wakeCurrent.split(":").map(Number);
@@ -445,6 +516,18 @@ const Logging: React.FC = () => {
 
            <button onClick={generateSchedule}>Generate Schedule</button>
         </section>
+        <div className="input-group">
+        <input
+          type="file"
+          accept=".json"
+          onChange={handleFileUpload}
+          style={{ display: 'none' }}
+          id="fhir-upload"
+        />
+        <label htmlFor="fhir-upload" className="upload-button">
+          Load Previous Schedule
+        </label>
+      </div>
 
         <section className="tmin-section">
            <div className="info-box">
@@ -461,7 +544,7 @@ const Logging: React.FC = () => {
 
         {schedule && (
            <section className="schedule-section">
-              <h2>📅 Personalized Adjustment Schedule</h2>
+              <h2 className="schedule-title">📅 Personalized Adjustment Schedule</h2>
               <p>Adjust your circadian rhythm day-by-day based on your time shift details:</p>
               <table>
                  <thead>

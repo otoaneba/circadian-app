@@ -46,7 +46,7 @@ const Overview: React.FC = () => {
     const timer = setInterval(() => {
       const newTime = getCurrentTimeDecimal();
       setCurrentTime(newTime);
-      console.log("Current time updated:", newTime); // Debug log
+      // console.log("Current time updated:", newTime); // Debug log
     }, 15000); // Update every 15 seconds
 
     return () => clearInterval(timer);
@@ -90,16 +90,16 @@ const Overview: React.FC = () => {
   }, [getBedtimeHours]);
 
   useEffect(() => {
-    console.log('Schedule Data:', scheduleData);
+    // console.log('Schedule Data:', scheduleData);
   }, [scheduleData]);
 
   // Debug logs
-  useEffect(() => {
+  // useEffect(() => {
     // console.log('Base Schedule updated:', baseSchedule);
     // console.log('Current T-min Time:', currentTMinTime);
     // console.log('Bed Time Hours:', bedTimeHours);
-    console.log('Light Avoidance Window:', lightAvoidanceWindow);
-  }, [baseSchedule, currentTMinTime, bedTimeHours, lightAvoidanceWindow]);
+  //   console.log('Light Avoidance Window:', lightAvoidanceWindow);
+  // }, [baseSchedule, currentTMinTime, bedTimeHours, lightAvoidanceWindow]);
 
   const getHeaderLogo = () => {
     switch (location.pathname) {
@@ -132,7 +132,6 @@ const Overview: React.FC = () => {
     });
   };
 
-  // Add this state for the toggle
   const [highlightedCurve, setHighlightedCurve] = useState<'current' | 'target'>('current');
 
   // Add this function to render the combined chart
@@ -449,7 +448,7 @@ const Overview: React.FC = () => {
   const renderWeeklyCalendar = () => {
     if (!schedule || !scheduleData) return null;
   
-    const { currentLightExposures, lightAvoidanceWindows } = scheduleData;
+    const { currentLightExposures, lightAvoidanceWindows, lightExposureWindows } = scheduleData;
     const scheduleDays = Object.keys(schedule).filter(key => key !== 'Activity');
     const days = ['Current', ...scheduleDays];
     const hours = Array.from({ length: 24 }, (_, i) => i);
@@ -476,32 +475,6 @@ const Overview: React.FC = () => {
         return getTMinTime(targetWakeTime);
       }
     };
-
-    // const getBedTimeForDay = (day: string) => {
-    //   if (day === 'Current') {
-    //     return bedTimeHours;
-    //   } else {
-    //     // Get the bedtime from schedule (assuming it's the last entry)
-    //     const bedTime = schedule[day][schedule[day].length - 1];
-    //     const [hours, minutes] = bedTime.split(':').map(Number);
-    //     return hours + minutes / 60;
-    //   }
-    // };
-
-    // days.forEach(day => {
-    //   const dayBedTime = getBedTimeForDay(day);
-    //   console.log(`when is bed time${day}:`, {
-    //     bedTime: dayBedTime,
-    //     lightAvoidanceStart: dayBedTime ? dayBedTime - 6 : null,
-    //     lightAvoidanceEnd: dayBedTime ? dayBedTime - 4 : null,
-    //     formattedBedTime: dayBedTime ? 
-    //       `${Math.floor(dayBedTime)}:${Math.round((dayBedTime % 1) * 60).toString().padStart(2, '0')}` : 
-    //       null,
-    //     formattedLightAvoidance: dayBedTime ? 
-    //       `${Math.floor(dayBedTime - 6)}:${Math.round(((dayBedTime - 6) % 1) * 60).toString().padStart(2, '0')} - ${Math.floor(dayBedTime - 4)}:${Math.round(((dayBedTime - 4) % 1) * 60).toString().padStart(2, '0')}` : 
-    //       null
-    //   });
-    // });
 
     return (
       <div className="weekly-calendar">
@@ -536,8 +509,18 @@ const Overview: React.FC = () => {
           </div>
           {days.map(day => {
             const dayTMinTime = getTMinForDay(day);
-            // const dayBedTime = getBedTimeForDay(day); 
             const lightAvoidanceWindow = lightAvoidanceWindows[day];
+            
+            // Get wake and sleep times for the day (only for scheduled days)
+            const wakeTime = day !== 'Current' ? schedule[day][0] : null;
+            const sleepTime = day !== 'Current' ? schedule[day][schedule[day].length - 1] : null;
+            
+            // Convert times to decimal for positioning (only if not Current)
+            const wakeTimeDecimal = wakeTime ? timeToDecimal(wakeTime) : null;
+            const sleepTimeDecimal = sleepTime ? timeToDecimal(sleepTime) : null;
+            
+            const wakeTimePosition = wakeTimeDecimal ? wakeTimeDecimal * 60 : null;
+            const sleepTimePosition = sleepTimeDecimal ? sleepTimeDecimal * 60 : null;
 
             // Convert light avoidance window times to decimal for comparison
             const avoidanceStartDecimal = lightAvoidanceWindow ? timeToDecimal(lightAvoidanceWindow.start) : null;
@@ -546,30 +529,42 @@ const Overview: React.FC = () => {
             // Adjust for previous day if necessary
             const adjustedAvoidanceStart = lightAvoidanceWindow?.previousDay && avoidanceStartDecimal != null ? avoidanceStartDecimal + 24 : avoidanceStartDecimal;
             const adjustedAvoidanceEnd = lightAvoidanceWindow?.previousDay && avoidanceEndDecimal != null ? avoidanceEndDecimal + 24 : avoidanceEndDecimal;
+            
+            const [lightAvoidanceStartHours, lightAvoidanceStartMinutes] = lightAvoidanceWindow?.previousDay ? lightAvoidanceWindow?.start?.split(':').map(Number) : [];
+            let [lightAvoidanceEndHours, lightAvoidanceEndMinutes] = lightAvoidanceWindow?.previousDay ? lightAvoidanceWindow?.end?.split(':').map(Number) : [];
 
-                    // Debug log for each day's zones
-          // console.log(`${day} zones:`, {
-          //   tMinTime: dayTMinTime,
-          //   bedTime: dayBedTime,
-          //   lightAvoidanceWindow: dayBedTime ? {
-          //     start: dayBedTime - 6,
-          //     end: dayBedTime - 4,
-          //     startFormatted: `${Math.floor(dayBedTime - 6)}:${Math.round(((dayBedTime - 6) % 1) * 60).toString().padStart(2, '0')}`,
-          //     endFormatted: `${Math.floor(dayBedTime - 4)}:${Math.round(((dayBedTime - 4) % 1) * 60).toString().padStart(2, '0')}`
-          //   } : null
+          // Debug log for light avoidance window
+          // console.log(`${day} Light Avoidance Window:`, {
+          //   start: lightAvoidanceWindow?.start,
+          //   end: lightAvoidanceWindow?.end,
+          //   previousDay: lightAvoidanceWindow?.previousDay,
+          //   adjustedStart: adjustedAvoidanceStart,
+          //   adjustedEnd: adjustedAvoidanceEnd,
+          //   lightAvoidanceStartHours,
+          //   lightAvoidanceStartMinutes,
+          //   lightAvoidanceEndHours,
+          //   lightAvoidanceEndMinutes
           // });
-
-          console.log(`${day} Light Avoidance Window:`, {
-            start: lightAvoidanceWindow?.start,
-            end: lightAvoidanceWindow?.end,
-            previousDay: lightAvoidanceWindow?.previousDay,
-            adjustedStart: adjustedAvoidanceStart,
-            adjustedEnd: adjustedAvoidanceEnd
-          });
           
             return (
               <div key={day} className="calendar-day-column">
-                asdfasfd
+                {/* Only show indicators if not Current day */}
+                {day !== 'Current' && wakeTimePosition && (
+                  <div 
+                    className="wake-time-indicator"
+                    style={{ top: `${wakeTimePosition}px` }}
+                  >
+                    <span className="wake-time-label">Wake Time: {wakeTime}</span>
+                  </div>
+                )}
+                {day !== 'Current' && sleepTimePosition && (
+                  <div 
+                    className="sleep-time-indicator"
+                    style={{ top: `${sleepTimePosition}px` }}
+                  >
+                    <span className="sleep-time-label">Sleep Time: {sleepTime}</span>
+                  </div>
+                )}
                 {hours.map(hour => {
                   const isLightSensitive = dayTMinTime && 
                     hour >= (dayTMinTime - 4) && 
@@ -579,56 +574,40 @@ const Overview: React.FC = () => {
                     hour >= (dayTMinTime + 6) && 
                     hour <= (dayTMinTime + 10);
                   
-                  // const isLightAvoidance = dayBedTime && 
-                  //   hour >= (dayBedTime - 6) && 
-                  //   hour <= (dayBedTime - 4);
 
                   // Handle light avoidance across midnight
                   let isLightAvoidance = false;
                  
                   if (lightAvoidanceWindow && avoidanceStartDecimal != null && avoidanceEndDecimal != null) {
                     if (lightAvoidanceWindow.previousDay && adjustedAvoidanceStart != null && adjustedAvoidanceEnd != null) {
-                      // If previous day, times are after midnight
-                      console.log(`${day} hour ${hour} is in light avoidance 111111111:`, {
-                        hour,
-                        avoidanceEndDecimal,
-                      });
-                      const hourAdjusted = hour < avoidanceEndDecimal ? hour + 24 : hour;
-                      isLightAvoidance = hourAdjusted >= adjustedAvoidanceStart && hourAdjusted <= adjustedAvoidanceEnd;
-                      console.log(`${day} hour ${hour} is in light avoidance 222222222:`, {
-                        hour,
-                        hourAdjusted,
-                        isLightAvoidance,
-                        avoidanceStartDecimal,
-                        avoidanceEndDecimal
-                      });
+                   
+                      // Debug log for specific hours that are marked as light avoidance
+                      // console.log(`${day} hour ${hour} is in light avoidance 222222222:`, {
+                      //   hour,
+                      //   hourAdjusted,
+                      //   isLightAvoidance,
+                      //   avoidanceStartDecimal,
+                      //   avoidanceEndDecimal,
+                      //   adjustedAvoidanceStart,
+                      //   adjustedAvoidanceEnd,
+                      //   lightAvoidanceStartHours,
+                      //   lightAvoidanceStartMinutes,
+                      //   lightAvoidanceEndHours,
+                      //   lightAvoidanceEndMinutes
+                      // });
+  
+                      if (lightAvoidanceEndHours === 0) { lightAvoidanceEndHours = 24}
+                      isLightAvoidance = hour >= (lightAvoidanceStartHours) && hour <= (lightAvoidanceEndHours) 
+
                     } else {
                       // Normal case, same day
                       isLightAvoidance = hour >= avoidanceStartDecimal && hour <= avoidanceEndDecimal;
                     }
                   }
 
-                
-                  
-                // Debug log for specific hours that are marked as light avoidance
-                if (isLightAvoidance) {
-                  // console.log(`${day} hour ${hour} is in light avoidance:`, {
-                  //   hour: hour,
-                  //   bedTime: dayBedTime,
-                  //   avoidanceStart: dayBedTime - 6,
-                  //   avoidanceEnd: dayBedTime - 4
-                  // });
-                  console.log(`${day} hour ${hour} is in light avoidance:`, {
-                    hour,
-                    avoidanceStart: adjustedAvoidanceStart,
-                    avoidanceEnd: adjustedAvoidanceEnd,
-                    previousDay: lightAvoidanceWindow?.previousDay
-                  });
-                }
-
-                  const isLightExposure = currentLightExposures?.some(
-                    exposure => hour >= exposure.start && hour <= exposure.end
-                  );
+                  const isLightExposure = lightExposureWindows && lightExposureWindows[day] && 
+                    hour >= timeToDecimal(lightExposureWindows[day].start) && 
+                    hour <= timeToDecimal(lightExposureWindows[day].end);
   
                   // Get the appropriate label
                   let zoneLabel = '';
@@ -701,23 +680,57 @@ const Overview: React.FC = () => {
           <Route path="/" element={
             <div className="overview-container">
               <section className="resources-section">
-                <h2>Status</h2>
-                <p>Current T-min Time: {currentTMinTime}</p>
-                <p>Current Time: {currentTime}</p>
-                <p>Bed Time Hours: {bedTimeHours}</p>
-                <p>{currentTMinTime && 
+                <h2 className="status-title">It is currently {currentTime.toFixed(2)}</h2>
+                {/* <p>Bed Time: {bedTimeHours}:00 </p> */}
+                {/* <p>{currentTMinTime && 
                 ((currentTMinTime - 4) <= currentTime && currentTime <= currentTMinTime + 4 ? "Currently in light sensitive zone" : 
                 bedTimeHours && bedTimeHours - 6 <= currentTime && currentTime <= bedTimeHours - 4 ? "Currently in light avoidance zone" : 
                 currentTMinTime && currentTMinTime + 6 <= currentTime && currentTime <= currentTMinTime ? "Currently in dead zone" : 
                 "No action required"
-                )}</p>
+                )}</p> */}
+                <p>
+                {currentTMinTime && (
+                  currentTime >= (currentTMinTime - 4) && currentTime <= (currentTMinTime + 4) ? (
+                    <>
+                    <span className="zone-indicator light-sensitive">
+                      Currently in light sensitive zone ({(currentTMinTime - 4).toFixed(2)} - {(currentTMinTime + 4).toFixed(2)})
+                    </span>
+                    <p className="zone-description">This means that you are currently in the light sensitive zone. This is the best time to get up and start your day.</p>
+                    </>
+                    
+                  ) : currentTMinTime && currentTime >= (currentTMinTime + 6) && currentTime <= (currentTMinTime + 10) ? (
+                    <>
+                    <span className="zone-indicator dead-zone">
+                      Currently in dead zone ({(currentTMinTime + 6).toFixed(2)} - {(currentTMinTime + 10).toFixed(2)})
+                    </span>
+                    <p className="zone-description">This means that you are currently in the dead zone. During this time, your circadian rhythm won't be affected by light exposure nor light avoidance.</p>
+                    </>
+                  ) : bedTimeHours && currentTime >= (bedTimeHours - 6) && currentTime <= (bedTimeHours - 4) ? (
+                    <>
+                    <span className="zone-indicator light-avoidance">
+                      Currently in light avoidance zone ({(bedTimeHours - 6).toFixed(2)} - {(bedTimeHours - 4).toFixed(2)})
+                    </span>
+                    <p className="zone-description">This means that you are currently in the light avoidance zone. This is the best time to avoid light exposure.</p>
+                    </>
+                  ) : (
+                    <>
+                    <span className="zone-indicator none">No action required at this time.</span>
+                    <p className="zone-description">You do not need to do anything to shift your circadian rhythm at this time.</p>
+                    </>
+                  )
+                )}
+                </p>
+               {!schedule && (
+                  <div className="empty-state">
+                    <h3>No Schedule Generated Yet</h3>
+                    <p>Go to the Log tab to generate your personalized adjustment schedule.</p>
+                  </div>
+                )}
               </section>
               {/* <div className="temperature-charts">
                 {renderCombinedChart()}
               </div> */}
-              <div className="weekly-calendar">
-                {renderWeeklyCalendar()}
-              </div>
+              {renderWeeklyCalendar()}
             </div>
           } />
           <Route path="/logging" element={<Logging />} />

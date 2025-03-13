@@ -16,6 +16,7 @@ interface ScheduleData {
   }>;
   lightAvoidanceWindow: LightAvoidanceWindow;
   lightAvoidanceWindows: Record<string, LightAvoidanceWindow>;
+  lightExposureWindows: Record<string, { start: string; end: string }>;
 }
 
 interface Schedule {
@@ -155,6 +156,36 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     // Get light exposure times
     const currentLightExposures = getLightExposureTimes(schedule['Day 1'], schedule.Activity);
 
+    // Calculate light exposure windows for each day
+    const lightExposureWindows: Record<string, { start: string; end: string }> = {};
+    
+    // For Current day
+    if (baseSchedule.wakeTime) {
+      const [wakeHours, wakeMinutes] = baseSchedule.wakeTime.split(':').map(Number);
+      const wakeTimeDecimal = wakeHours + wakeMinutes / 60;
+      const tMinTime = wakeTimeDecimal - 2;
+      
+      // Light exposure window is during light sensitive period (2 hours after wake)
+      lightExposureWindows['Current'] = {
+        start: decimalToTime(wakeTimeDecimal),
+        end: decimalToTime(wakeTimeDecimal + 2)
+      };
+    }
+
+    // For scheduled days
+    Object.keys(schedule).forEach(day => {
+      if (day !== 'Activity') {
+        const wakeTime = schedule[day][0];
+        const [wakeHours, wakeMinutes] = wakeTime.split(':').map(Number);
+        const wakeTimeDecimal = wakeHours + wakeMinutes / 60;
+        
+        lightExposureWindows[day] = {
+          start: decimalToTime(wakeTimeDecimal),
+          end: decimalToTime(wakeTimeDecimal + 2)
+        };
+      }
+    });
+
     setScheduleData({
       currentWakeTime,
       currentTMinTime: currentWakeHours - 2,
@@ -167,7 +198,8 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       currentTime,
       currentLightExposures,
       lightAvoidanceWindow,
-      lightAvoidanceWindows
+      lightAvoidanceWindows,
+      lightExposureWindows
     });
   }, [schedule, baseSchedule]);
 
@@ -189,6 +221,13 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     return () => clearInterval(timer);
   }, [scheduleData]);
+
+  // Helper function to format decimal time to HH:MM
+  const formatTime = (timeDecimal: number) => {
+    const hours = Math.floor(timeDecimal);
+    const minutes = Math.round((timeDecimal % 1) * 60);
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  };
 
   return (
     <ScheduleContext.Provider value={{ 
